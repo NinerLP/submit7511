@@ -2,6 +2,9 @@
 #include <cstdlib>
 #include "bibliophile_7511_ok_X.cpp"
 #include <unistd.h>
+#include <iostream>
+#include <random>
+#include <queue>
 
 #define SINT sizeof(int)
 
@@ -15,6 +18,36 @@ int passes;
 int generation;
 int brkn = 0;
 
+class MyRandom {
+    public:
+        MyRandom(int mn, int mx) : min(mn), max(mx) {
+            populate();
+        }
+        std::queue<int> generated;
+        int getR() {
+            if (generated.size() == 1) {
+                populate();
+            }
+            int res = generated.front();
+            generated.pop();
+            return res;
+        }
+        void populate() {
+            std::random_device rd;
+            std::mt19937 mt(rd());
+            std::uniform_int_distribution<int> dist(min,max);
+
+            for (int i = 0; i < 5; ++i) {
+                generated.push(dist(mt));
+            }
+        }
+        int min, max;
+};
+
+MyRandom* weights;
+MyRandom* qs;
+MyRandom* prob;
+
 class Test {
 public:
     int* year;
@@ -24,7 +57,7 @@ public:
         int least = 2010;
         year = (int*) calloc(NN,SINT);
         for (int i = 0; i < NN; ++i) {
-            year[i] = rand() % 2009 + 1;
+            year[i] = weights->getR();
             capacity += year[i];
             least = min(least,year[i]);
         }
@@ -35,7 +68,7 @@ public:
         int least = 2010;
         year = (int*) calloc(NN,SINT);
         for (int i = 0; i < NN; ++i) {
-            year[i] = rand() % 2009 + 1;
+            year[i] = weights->getR();
             capacity += year[i];
             least = min(least,year[i]);
         }
@@ -46,7 +79,8 @@ public:
         int least = 2010;
         year = (int*) calloc(NN,SINT);
         for (int i = 0; i < NN; ++i) {
-            year[i] = min(max(1, pre->year[i] + rand() % Q - (Q/2) ),2009);
+            //year[i] = (rand() % (2)) ? pre->year[i] : min(max(1, pre->year[i] + rand() % Q - (Q/2) ),2009);
+            year[i] = (prob->getR()) ? pre->year[i] : min(max(1, pre->year[i] + qs->getR()),2009);
             capacity += year[i];
             least = min(least,year[i]);
         }
@@ -119,14 +153,11 @@ void genTest() {
 
     FILE *progress = fopen("progress.csv","w");
     fprintf(progress,"passes;generation;bestIterations;newIter;difference\n");
-    int nextSeed = rand();
     int bestIterations = doTheTesting(best);
     passes = 0;
     generation = 0;
     int newIter = 0;
     while (true) {
-        srand(nextSeed);
-        nextSeed = rand();
         if (passes > MAX_PASSES)  {
             printf("Restared\n");
             generation = 0;
@@ -179,6 +210,7 @@ int main(int argc, char **argv) {
     int c;
     opterr = 0;
 
+    SEED = time(NULL);
     while ((c = getopt(argc,argv,"N:Q:C:S:P:T:")) != -1) {
         switch (c) {
             case 'N':
@@ -202,9 +234,12 @@ int main(int argc, char **argv) {
         }
     }
 
+
+    weights = new MyRandom(1,2009);
+    qs = new MyRandom(-1 * Q, Q);
+    prob = new MyRandom(0, 1 );
     printf("NN = %d, Q = %d, CC = %f, SEED = %d, MAX_PASSES = %d, TL = %f\n",NN,Q,CC,SEED,MAX_PASSES,TL);
 
-    srand(time(NULL));
     genTest();
     //doTheFlop();
 
